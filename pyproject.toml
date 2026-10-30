@@ -1,0 +1,17 @@
+[project]
+name = "profile-router"
+version = "0.1.0"
+description = "Open each link in the right browser profile (Chrome, Edge, Brave, Vivaldi, Iron, Firefox) on Windows."
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.10"
+dependencies = []
+
+[project.scripts]
+profile-router = "profile_router.__main__:main"
+
+[dependency-groups]
+dev = ["pytest>=8"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
