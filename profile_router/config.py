@@ -25,6 +25,8 @@ class Card:
     name: str = ""
     color: str = ""
     home: str = ""
+    launch_options: list[str] = field(default_factory=list)  # browsers.LAUNCH_OPTIONS keys
+    launch_custom: str = ""  # extra switches typed by the user
 
 
 @dataclass

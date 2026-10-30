@@ -153,22 +153,90 @@ def next_profile_dir(spec: BrowserSpec) -> str:
     return f"Profile {n}"
 
 
-def command(p: Profile, *urls: str | None) -> list[str]:
-    """Command line opening profile `p`, with each URL in its own tab."""
+def command(p: Profile, *urls: str | None, extra: list[str] | tuple = ()) -> list[str]:
+    """Command line opening profile `p`, with each URL in its own tab; `extra` are launch switches."""
     urls = tuple(u for u in urls if u)
     if p.kind == "chromium":
         cmd = [str(p.exe)]
         if p.user_data_dir:
             cmd.append(f"--user-data-dir={p.user_data_dir}")
-        return cmd + [f"--profile-directory={p.profile_id}", *urls]
-    cmd = [str(p.exe), "-P", p.profile_id]
+        return cmd + [f"--profile-directory={p.profile_id}", *extra, *urls]
+    cmd = [str(p.exe), "-P", p.profile_id, *extra]
     for u in urls:
         cmd += ["-new-tab", u]
     return cmd
 
 
-def launch(p: Profile, *urls: str | None) -> None:
-    subprocess.Popen(command(p, *urls), close_fds=True)
+def launch(p: Profile, *urls: str | None, extra: list[str] | tuple = ()) -> None:
+    subprocess.Popen(command(p, *urls, extra=extra), close_fds=True)
+
+
+# Launch switches offered per room: key -> (switches, the name to look for in the browser's binaries).
+# Only switches known to still work in current Chromium; each is shown only if this browser version has it.
+LAUNCH_OPTIONS = {
+    "no_default_check": (("--no-default-browser-check",), "no-default-browser-check"),
+    "hide_restore": (("--hide-crash-restore-bubble",), "hide-crash-restore-bubble"),
+    "no_first_run": (("--no-first-run",), "no-first-run"),
+    "no_search_choice": (("--disable-search-engine-choice-screen",), "disable-search-engine-choice-screen"),
+    "maximized": (("--start-maximized",), "start-maximized"),
+    "mute": (("--mute-audio",), "mute-audio"),
+    "force_dark": (("--enable-features=WebContentsForceDark",), "WebContentsForceDark"),
+}
+
+def browser_binaries(exe: Path) -> list[Path]:
+    """The browser's main executable and its core DLL (in the newest version folder, or next to the exe)."""
+    found = [exe]
+    for name in ("chrome.dll", "msedge.dll", "vivaldi.dll"):
+        found += sorted(exe.parent.glob(f"*/{name}"), key=lambda p: [int(x) if x.isdigit() else 0
+                                                                     for x in p.parent.name.split(".")])[-1:]
+        found += [exe.parent / name] if (exe.parent / name).is_file() else []
+    return [p for p in found if p.is_file()]
+
+
+def browser_version(exe: Path) -> str:
+    for dll in browser_binaries(exe)[1:]:
+        if re.fullmatch(r"\d+(\.\d+){3}", dll.parent.name):
+            return dll.parent.name
+    manifest = sorted(exe.parent.glob("*.manifest"), key=lambda p: p.stat().st_mtime)
+    m = re.match(r"(\d+(?:\.\d+){3})", manifest[-1].name) if manifest else None
+    return m.group(1) if m else ""
+
+
+def supports_switch(exe: Path, name: str) -> bool:
+    """Whether this browser version still contains the switch/feature name (switches removed from Chromium
+    disappear from its binaries). A name preceded by a letter, digit or dash is a different, longer string."""
+    import mmap
+
+    needle = name.encode() + b"\x00"
+    word = frozenset(b"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-")
+    for binary in browser_binaries(exe):
+        try:
+            with open(binary, "rb") as f, mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ) as m:
+                i = m.find(needle)
+                while i != -1:
+                    if i == 0 or m[i - 1] not in word:
+                        return True
+                    i = m.find(needle, i + 1)
+        except (OSError, ValueError):
+            continue
+    return False
+
+
+def available_options(exe: Path) -> dict[str, bool]:
+    """LAUNCH_OPTIONS keys -> supported by this browser version (cached per executable and its mtime)."""
+    key = (str(exe), exe.stat().st_mtime if exe.exists() else 0)
+    if key not in _options_cache:
+        _options_cache[key] = {k: supports_switch(exe, probe) for k, (_, probe) in LAUNCH_OPTIONS.items()}
+    return _options_cache[key]
+
+
+_options_cache: dict[tuple[str, float], dict[str, bool]] = {}
+
+
+def launch_args(options: list[str], custom: str) -> list[str]:
+    """Switches for the chosen option keys plus the user's own (space separated, "quotes" keep spaces)."""
+    args = [s for k in options if k in LAUNCH_OPTIONS for s in LAUNCH_OPTIONS[k][0]]
+    return args + [a.strip('"') for a in re.findall(r'"[^"]*"|\S+', custom or "")]
 
 
 @dataclass(frozen=True)

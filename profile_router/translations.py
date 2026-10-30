@@ -318,4 +318,29 @@ CATALOG: dict[str, dict[str, str]] = {
     "只能清除 Chromium 系浏览器的网站数据": {
         "ja": "サイトデータを消去できるのは Chromium 系ブラウザーだけです",
         "en": "Site data can only be cleared in Chromium-based browsers"},
+
+    # --- launch options (room settings) ----------------------------------------------------------
+    "启动项": {"ja": "起動オプション", "en": "Launch options"},
+    "不提示「设为默认浏览器」": {
+        "ja": "「既定のブラウザーに設定」の案内を出さない", "en": "Don't ask to become the default browser"},
+    "不弹「要恢复页面吗」（异常关闭后）": {
+        "ja": "「ページを復元しますか？」を出さない（異常終了後）",
+        "en": "Don't show \"Restore pages?\" (after a crash)"},
+    "跳过首次运行页面": {"ja": "初回起動の画面を飛ばす", "en": "Skip the first-run pages"},
+    "跳过搜索引擎选择页": {"ja": "検索エンジンの選択画面を飛ばす", "en": "Skip the search engine choice screen"},
+    "启动时最大化": {"ja": "最大化して起動", "en": "Start maximized"},
+    "静音": {"ja": "ミュート", "en": "Mute audio"},
+    "网页强制深色": {"ja": "Web ページを強制ダークモードにする", "en": "Force dark mode on web pages"},
+    "{option}（{browser} {version} 没有这一项）": {
+        "ja": "{option}（{browser} {version} にはありません）",
+        "en": "{option} (not available in {browser} {version})"},
+    "其他参数": {"ja": "その他の引数", "en": "Other switches"},
+    "同一个浏览器的所有房间共用一个进程：浏览器已经开着时，新窗口沿用已开的设置；"
+    "这些启动项在浏览器完全关闭后再打开时生效。快捷方式也会带上。": {
+        "ja": "同じブラウザーのルームはすべて 1 つのプロセスを共有します。ブラウザーが開いているときは、"
+              "新しいウィンドウは既存の設定を引き継ぎます。起動オプションはブラウザーを完全に閉じてから"
+              "開いたときに有効になります。ショートカットにも含まれます。",
+        "en": "All rooms of one browser share a single process: while the browser is running, new windows keep "
+              "its current settings, so these options take effect after the browser is fully closed and opened "
+              "again. Shortcuts include them too."},
 }

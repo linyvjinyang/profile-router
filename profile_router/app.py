@@ -46,11 +46,32 @@ def card_subtitle(p: Profile) -> str:
     return p.browser_label + (f" · {p.account}" if p.account else "")
 
 
+LAUNCH_LABELS = {  # Chinese source strings, translated with t() where shown
+    "no_default_check": "不提示「设为默认浏览器」",
+    "hide_restore": "不弹「要恢复页面吗」（异常关闭后）",
+    "no_first_run": "跳过首次运行页面",
+    "no_search_choice": "跳过搜索引擎选择页",
+    "maximized": "启动时最大化",
+    "mute": "静音",
+    "force_dark": "网页强制深色",
+}
+
+
+def room_args(cfg: Config, p: Profile) -> list[str]:
+    """The room's launch switches (chosen options + custom), used whenever the room is opened."""
+    c = cfg.cards.get(p.card_id)
+    return browsers.launch_args(c.launch_options, c.launch_custom) if c else []
+
+
+def open_room(cfg: Config, p: Profile, *urls: str) -> None:
+    browsers.launch(p, *urls, extra=room_args(cfg, p))
+
+
 def open_in(cfg: Config, p: Profile, url: str | None = None) -> None:
     if url is None:
         c = cfg.cards.get(p.card_id)
         url = c.home if c and c.home else None
-    browsers.launch(p, normalize(url) if url else None)
+    open_room(cfg, p, normalize(url) if url else None)
 
 
 def site_url(site: str) -> str:
@@ -417,7 +438,7 @@ class LauncherApp:
             messagebox.showwarning(t("切换账号"), t("找不到「{label}」所在的房间（{card}）。", label=a.label, card=a.card))
             return
         urls = account_urls(a)
-        browsers.launch(p, *urls)
+        open_room(self.cfg, p, *urls)
         if a.pages:
             text = t("已切到 {site} · {label}（房间「{room}」），打开了 {n} 个常用页", site=a.site, label=a.label,
                      room=card_title(self.cfg, p), n=len(urls))
@@ -756,7 +777,7 @@ class AddAccountDialog:
             new_room = True
         else:
             card_id = self.choice.get()
-            browsers.launch(next(p for p in self.rooms if p.card_id == card_id), url)
+            open_room(self.cfg, next(p for p in self.rooms if p.card_id == card_id), url)
             new_room = False
         self.cfg.accounts.append(Account(self.site, label, card_id))
         if self.site not in self.cfg.sites:
@@ -784,7 +805,7 @@ class NewRoomDialog:
 
 class CopyExtensionsDialog:
     def __init__(self, parent: tk.Misc, cfg: Config, rooms: list[Profile], target: Profile):
-        self.target = target
+        self.cfg, self.target = cfg, target
         self.win, f = _dialog(parent, t("复制扩展到「{room}」", room=card_title(cfg, target)))
         others = [p for p in rooms if p.card_id != target.card_id]
         self.picker = ExtensionPicker(f, cfg, others)
@@ -795,7 +816,7 @@ class CopyExtensionsDialog:
 
     def submit(self) -> None:
         for e in self.picker.selected():
-            browsers.launch(self.target, e.url)
+            open_room(self.cfg, self.target, e.url)
         self.win.destroy()
 
 
@@ -917,7 +938,7 @@ class ShortcutDialog:
         name = self.name.get().strip() or t("快捷方式")
         try:
             for where in chosen:
-                shortcuts.create(name, p, urls, where, icon, "Profile Router")
+                shortcuts.create(name, p, urls, where, icon, "Profile Router", extra=room_args(self.launcher.cfg, p))
         except OSError as e:
             messagebox.showerror(t("创建快捷方式"), str(e), parent=self.win)
             return
@@ -952,8 +973,35 @@ class RoomDialog:
                                                                     pady=(14, 2))
         self.accounts = ttk.Frame(f)
         self.accounts.grid(row=5, column=0, columnspan=3, sticky="we")
-        ttk.Button(f, text=t("保存"), command=self.save).grid(row=6, column=2, sticky="e", pady=(12, 0))
+        self._launch_section(f, c).grid(row=6, column=0, columnspan=3, sticky="we", pady=(14, 0))
+        ttk.Button(f, text=t("保存"), command=self.save).grid(row=7, column=2, sticky="e", pady=(12, 0))
         self._fill_accounts()
+
+    def _launch_section(self, parent: tk.Misc, c) -> ttk.Frame:
+        """Launch switches for this room, offered only if this browser version still has them."""
+        box = ttk.Frame(parent)
+        ver = browsers.browser_version(self.p.exe)
+        ttk.Label(box, text=t("启动项"), style="Head.TLabel").pack(anchor="w")
+        self.options: dict[str, tk.BooleanVar] = {}
+        if self.p.kind == "chromium":
+            supported = browsers.available_options(self.p.exe)
+            for key in browsers.LAUNCH_OPTIONS:
+                v = tk.BooleanVar(value=key in c.launch_options)
+                ok = supported.get(key, False)
+                text = t(LAUNCH_LABELS[key]) if ok else t("{option}（{browser} {version} 没有这一项）",
+                                                          option=t(LAUNCH_LABELS[key]), browser=self.p.browser_label,
+                                                          version=ver)
+                ttk.Checkbutton(box, text=text, variable=v, state="normal" if ok else "disabled").pack(anchor="w")
+                self.options[key] = v
+        row = ttk.Frame(box)
+        row.pack(fill="x", pady=(6, 0))
+        ttk.Label(row, text=t("其他参数")).pack(side="left")
+        self.custom = tk.StringVar(value=c.launch_custom)
+        ttk.Entry(row, textvariable=self.custom, width=40).pack(side="left", padx=6, fill="x", expand=True)
+        ttk.Label(box, text=t("同一个浏览器的所有房间共用一个进程：浏览器已经开着时，新窗口沿用已开的设置；"
+                              "这些启动项在浏览器完全关闭后再打开时生效。快捷方式也会带上。"),
+                  style="Muted.TLabel", wraplength=440, justify="left").pack(anchor="w", pady=(4, 0))
+        return box
 
     def _fill_accounts(self) -> None:
         for w in self.accounts.winfo_children():
@@ -985,6 +1033,8 @@ class RoomDialog:
         c.name = self.name.get().strip() if self.name.get().strip() != self.p.name else ""
         c.home = self.home.get().strip()
         c.color = self.color
+        c.launch_options = [k for k, v in self.options.items() if v.get()]
+        c.launch_custom = self.custom.get().strip()
         cfg.save()
         self.win.destroy()
         self.launcher.refresh()
@@ -1032,7 +1082,7 @@ class DeleteAccountsDialog:
         url = browsers.site_settings_url(p, a.site)
         self.win.clipboard_clear()
         self.win.clipboard_append(url)
-        browsers.launch(p)
+        open_room(self.cfg, p)
         messagebox.showinfo(t("网站设置"), t("已打开房间「{room}」，并复制了 {site} 的网站设置页地址。\n\n"
                                            "在地址栏粘贴（Ctrl+V）回车，点「删除数据」即可退出登录。\n"
                                            "删完回来点「删除」，并取消勾选清除（已经清过了）。",

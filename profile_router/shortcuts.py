@@ -67,9 +67,9 @@ def _quote(arg: str) -> str:
 
 
 def create(name: str, p: Profile, urls: list[str], where: str, icon: Path | None = None,
-           description: str = "") -> Path:
+           description: str = "", extra: list[str] | tuple = ()) -> Path:
     """Create `name`.lnk on the "desktop", in the "start" menu, or in a folder path."""
-    cmd = command(p, *urls)
+    cmd = command(p, *urls, extra=extra)
     # WScript saves file names through the ANSI code page, which drops characters like "·"; save under an
     # ASCII name and rename in Python.
     temp = f"profile-router-{uuid.uuid4().hex[:8]}"

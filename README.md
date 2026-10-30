@@ -19,6 +19,7 @@ Works with Chrome, Edge, Brave, Vivaldi, SRWare Iron (Chromium-based) and Firefo
 - **Add an account in one place** — name it, pick a room (a room holds at most one account per site) or create a new one, then log in once on the page that opens.
 - **New rooms without the browser's sign-in screens** — a local profile is created directly; you can copy extensions (e.g. LastPass) from another room. Passkeys stored in Windows Hello work in every room.
 - **Pinned pages** — save a few pages per account (feed, favorites, dashboard…) that open together when you switch to it.
+- **Launch options per room** — e.g. don't ask to become the default browser, don't show "Restore pages?" after a crash, skip first-run pages, start maximized, mute, force dark pages, plus any switches of your own. Each option is checked against the installed browser version and greyed out if that version no longer has it. They apply when the browser starts (all rooms of a browser share one process).
 - **Shortcuts** — create desktop or Start menu shortcuts for an account or a room; they launch the browser directly.
 - **Delete accounts and rooms safely** — deleting an account can also remove that site's login cookies and data from its room (you are warned first; the browser must be closed). Deleting a room moves its folder to the Recycle Bin. The browser's main profile and profiles signed in to a browser account cannot be deleted.
 - **Default browser (optional)** — register Profile Router as your default browser so links from other apps open with the right account, or ask which one to use.

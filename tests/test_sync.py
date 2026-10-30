@@ -22,17 +22,6 @@ def test_signature_notices_changes(tmp_path):
     assert browsers.signature([f]) != before
 
 
-@pytest.fixture
-def root():
-    try:
-        r = tk.Tk()
-    except tk.TclError:
-        pytest.skip("no display")
-    r.withdraw()
-    yield r
-    r.destroy()
-
-
 def test_shortcut_dialog_prefills_the_launch_target(tmp_path, monkeypatch, root):
     from profile_router.config import Account
     monkeypatch.setenv("PROFILE_ROUTER_CONFIG", str(tmp_path / "config.json"))

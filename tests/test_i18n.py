@@ -17,7 +17,8 @@ SOURCES = ["app.py", "browsers.py", "shortcuts.py"]
 CJK = re.compile(r"[　-〿぀-ヿ㐀-䶿一-鿿＀-￯]")
 # Literals in app.py that may stay outside t():
 #   "＋" is the icon-like "add" button on each site row; it is a symbol, the same in every language.
-ALLOWED = {"＋"}
+#   LAUNCH_LABELS values are source strings translated where shown: t(LAUNCH_LABELS[key]).
+ALLOWED = {"＋", *app.LAUNCH_LABELS.values()}
 
 
 def _tree(name: str) -> ast.AST:
@@ -31,7 +32,7 @@ def _t_calls(tree: ast.AST):
 
 
 def used_keys() -> set[str]:
-    keys = set(shortcuts.LOCATIONS.values())  # translated where they are shown: t(text)
+    keys = set(shortcuts.LOCATIONS.values()) | set(app.LAUNCH_LABELS.values())  # translated where shown
     for name in SOURCES:
         keys |= {c.args[0].value for c in _t_calls(_tree(name))
                  if isinstance(c.args[0], ast.Constant) and isinstance(c.args[0].value, str)}
@@ -90,17 +91,6 @@ def test_switching_language():
 
 
 @pytest.fixture
-def root():
-    try:
-        r = tk.Tk()
-    except tk.TclError:
-        pytest.skip("no display")
-    r.withdraw()
-    yield r
-    r.destroy()
-
-
-@pytest.fixture
 def launcher(tmp_path, monkeypatch, root):
     monkeypatch.setenv("PROFILE_ROUTER_CONFIG", str(tmp_path / "config.json"))
     exe = tmp_path / "chrome.exe"
@@ -115,7 +105,7 @@ def launcher(tmp_path, monkeypatch, root):
     monkeypatch.setattr(browsers, "all_profiles", lambda extras=(): rooms)
     monkeypatch.setattr(browsers, "installed_chromium", lambda: [spec])
     monkeypatch.setattr(browsers, "list_extensions", lambda p: exts)
-    monkeypatch.setattr(browsers, "launch", lambda p, *urls: None)
+    monkeypatch.setattr(browsers, "launch", lambda p, *urls, extra=(): None)
     monkeypatch.setattr(icons, "fetch_icon", lambda *a, **k: None)
     small = Account("x.com", "小号", "t:Profile 1", pages=["https://x.com/home"])
     Config(accounts=[Account("x.com", "主号", "t:Default"), small], sites=["github.com"],
